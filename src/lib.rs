@@ -1,4 +1,5 @@
 //! TODO
+use std::array;
 use std::fmt;
 use std::fmt::Binary;
 use std::fmt::Debug;
@@ -6,15 +7,18 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::LowerHex;
 use std::fmt::UpperHex;
+use std::ops::BitAnd;
 use std::ops::BitAndAssign;
+use std::ops::BitOr;
 use std::ops::BitOrAssign;
+use std::ops::BitXor;
+use std::ops::BitXorAssign;
+use std::ops::Not;
 
 use num_traits::PrimInt;
 
 /// Integer that can be used as a block of bits in a bitset.
-pub trait BitBlock:
-    PrimInt + BitAndAssign + BitOrAssign + Binary + LowerHex + UpperHex + 'static
-{
+pub trait BitBlock: PrimInt + Binary + LowerHex + UpperHex + 'static {
     /// Number of bits in the block.
     const BITS: usize;
 
@@ -110,6 +114,60 @@ impl<T: BitBlock> From<T> for InlineBitSet<T, 1> {
     /// Create a bitset from the underlying bit block.
     fn from(block: T) -> Self {
         Self { blocks: [block] }
+    }
+}
+
+impl<T: BitBlock, const N: usize> Not for InlineBitSet<T, N> {
+    type Output = Self;
+
+    /// Returns a bitset with all bits flipped.
+    fn not(self) -> Self::Output {
+        array::from_fn(|i| !self.blocks[i]).into()
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitAnd for InlineBitSet<T, N> {
+    type Output = Self;
+
+    /// Returns a bitset with all bits that are set in both `self` and `rhs`.
+    fn bitand(self, rhs: Self) -> Self::Output {
+        array::from_fn(|i| self.blocks[i] & rhs.blocks[i]).into()
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitAndAssign for InlineBitSet<T, N> {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = *self & rhs;
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitOr for InlineBitSet<T, N> {
+    type Output = Self;
+
+    /// Returns a bitset with all bits that are set in either `self` or `rhs`.
+    fn bitor(self, rhs: Self) -> Self::Output {
+        array::from_fn(|i| self.blocks[i] | rhs.blocks[i]).into()
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitOrAssign for InlineBitSet<T, N> {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs;
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitXor for InlineBitSet<T, N> {
+    type Output = Self;
+
+    /// Returns a bitset with all bits that are set in exactly one of `self` and `rhs`.
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        array::from_fn(|i| self.blocks[i] ^ rhs.blocks[i]).into()
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitXorAssign for InlineBitSet<T, N> {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = *self ^ rhs;
     }
 }
 
@@ -241,6 +299,76 @@ mod tests {
     #[test]
     fn default() {
         assert_eq!(TestBitSet::EMPTY, TestBitSet::default());
+    }
+
+    #[test]
+    fn not() {
+        assert_eq!(TestBitSet::ALL, !TestBitSet::EMPTY);
+        assert_eq!(TestBitSet::EMPTY, !TestBitSet::ALL);
+        assert_eq!(
+            TestBitSet::from([0b00111100, 0b10101010]),
+            !TestBitSet::from([0b11000011, 0b01010101])
+        );
+    }
+
+    #[test]
+    fn and() {
+        fn test(mut l: TestBitSet, r: TestBitSet, expected: TestBitSet) {
+            assert_eq!(expected, l & r);
+            l &= r;
+            assert_eq!(expected, l);
+        }
+
+        test(TestBitSet::EMPTY, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::EMPTY, TestBitSet::ALL, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::ALL);
+
+        test(
+            TestBitSet::from([0b11100111, 0b01010101]),
+            TestBitSet::from([0b00111100, 0b10101010]),
+            TestBitSet::from([0b00100100, 0b00000000]),
+        );
+    }
+
+    #[test]
+    fn or() {
+        fn test(mut l: TestBitSet, r: TestBitSet, expected: TestBitSet) {
+            assert_eq!(expected, l | r);
+            l |= r;
+            assert_eq!(expected, l);
+        }
+
+        test(TestBitSet::EMPTY, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::EMPTY, TestBitSet::ALL);
+        test(TestBitSet::EMPTY, TestBitSet::ALL, TestBitSet::ALL);
+        test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::ALL);
+
+        test(
+            TestBitSet::from([0b01100110, 0b01010101]),
+            TestBitSet::from([0b00111100, 0b10101010]),
+            TestBitSet::from([0b01111110, 0b11111111]),
+        );
+    }
+
+    #[test]
+    fn xor() {
+        fn test(mut l: TestBitSet, r: TestBitSet, expected: TestBitSet) {
+            assert_eq!(expected, l ^ r);
+            l ^= r;
+            assert_eq!(expected, l);
+        }
+
+        test(TestBitSet::EMPTY, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::EMPTY, TestBitSet::ALL);
+        test(TestBitSet::EMPTY, TestBitSet::ALL, TestBitSet::ALL);
+        test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::EMPTY);
+
+        test(
+            TestBitSet::from([0b01100110, 0b01010101]),
+            TestBitSet::from([0b00111100, 0b10101010]),
+            TestBitSet::from([0b01011010, 0b11111111]),
+        );
     }
 
     #[test]
