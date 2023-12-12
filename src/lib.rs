@@ -54,21 +54,6 @@ impl<T: BitBlock, const N: usize> InlineBitSet<T, N> {
         blocks: [T::ALL; N],
     };
 
-    /// Create a bitset from the underlying bit blocks.
-    ///
-    /// See [`InlineBitSet`] for more information on how the bits are indexed.
-    pub const fn from_blocks(blocks: [T; N]) -> Self {
-        debug_assert!(T::BITS.checked_mul(N).is_some());
-        Self { blocks }
-    }
-
-    /// Convert the bitset into the underlying bit blocks.
-    ///
-    /// See [`InlineBitSet`] for more information on how the bits are indexed.
-    pub const fn to_blocks(self) -> [T; N] {
-        self.blocks
-    }
-
     /// Number of bits in the bitset.
     ///
     /// Equivalent to [`Self::CAPACITY`].
@@ -81,6 +66,33 @@ impl<T: BitBlock, const N: usize> Default for InlineBitSet<T, N> {
     /// Returns [`Self::EMPTY`].
     fn default() -> Self {
         Self::EMPTY
+    }
+}
+
+impl<T: BitBlock, const N: usize> From<[T; N]> for InlineBitSet<T, N> {
+    /// Create a bitset from the underlying bit blocks.
+    ///
+    /// See [`InlineBitSet`] for more information on how the bits are indexed.
+    fn from(blocks: [T; N]) -> Self {
+        Self { blocks }
+    }
+}
+
+impl<T: BitBlock, const N: usize> From<InlineBitSet<T, N>> for [T; N] {
+    /// Convert the bitset into the underlying bit blocks.
+    ///
+    /// See [`InlineBitSet`] for more information on how the bits are indexed.
+    fn from(bitset: InlineBitSet<T, N>) -> Self {
+        bitset.blocks
+    }
+}
+
+impl<T: BitBlock> From<T> for InlineBitSet<T, 1> {
+    /// Create a bitset from the underlying bit block.
+    ///
+    /// See [`InlineBitSet`] for more information on how the bits are indexed.
+    fn from(block: T) -> Self {
+        Self { blocks: [block] }
     }
 }
 
@@ -111,7 +123,7 @@ mod tests {
     #[test]
     fn empty() {
         assert_eq!(
-            TestBitSet::from_blocks([0b0000_0000, 0b0000_0000]),
+            TestBitSet::from([0b0000_0000, 0b0000_0000]),
             TestBitSet::EMPTY
         );
     }
@@ -119,15 +131,21 @@ mod tests {
     #[test]
     fn all() {
         assert_eq!(
-            TestBitSet::from_blocks([0b1111_1111, 0b1111_1111]),
+            TestBitSet::from([0b1111_1111, 0b1111_1111]),
             TestBitSet::ALL
         );
     }
 
     #[test]
-    fn from_to_blocks() {
+    fn from_into() {
         let blocks = [0b1010_1010, 0b0101_0101];
-        assert_eq!(blocks, TestBitSet::from_blocks(blocks).to_blocks());
+        assert_eq!(blocks, <[_; 2]>::from(TestBitSet::from(blocks)));
+    }
+
+    #[test]
+    fn from_integer() {
+        let block: u8 = 0b0110_1001;
+        assert_eq!([block], <[_; 1]>::from(InlineBitSet::from(block)));
     }
 
     #[test]
