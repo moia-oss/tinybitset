@@ -40,7 +40,7 @@ macro_rules! impl_bit_block {
 impl_bit_block!(u8, u16, u32, u64, u128);
 
 /// TODO
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InlineBitSet<T: BitBlock, const N: usize> {
     blocks: [T; N],
 }
