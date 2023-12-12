@@ -42,12 +42,12 @@ macro_rules! impl_bit_block {
                 const ALL: Self = <$int>::MAX;
             }
 
-            impl From<InlineBitSet<$int, 1>> for $int {
+            impl From<TinyBitSet<$int, 1>> for $int {
                 /// Convert the bitset into the underlying bit block.
                 ///
                 /// Due to the orphan rule, this cannot be covered by a blanket implementation and
                 /// is thus separately implemented for all primitive integer types.
-                fn from(bitset: InlineBitSet<$int, 1>) -> Self {
+                fn from(bitset: TinyBitSet<$int, 1>) -> Self {
                     bitset.blocks[0]
                 }
             }
@@ -59,11 +59,11 @@ impl_bit_block!(u8, u16, u32, u64, u128);
 
 /// TODO
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InlineBitSet<T: BitBlock, const N: usize> {
+pub struct TinyBitSet<T: BitBlock, const N: usize> {
     blocks: [T; N],
 }
 
-impl<T: BitBlock, const N: usize> InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     /// Number of bits in the bitset.
     pub const CAPACITY: usize = T::BITS * N;
 
@@ -85,39 +85,39 @@ impl<T: BitBlock, const N: usize> InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> Default for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> Default for TinyBitSet<T, N> {
     /// Returns [`Self::EMPTY`].
     fn default() -> Self {
         Self::EMPTY
     }
 }
 
-impl<T: BitBlock, const N: usize> From<[T; N]> for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> From<[T; N]> for TinyBitSet<T, N> {
     /// Create a bitset from the underlying bit blocks.
     ///
-    /// See [`InlineBitSet`] for more information on how the bits are indexed.
+    /// See [`TinyBitSet`] for more information on how the bits are indexed.
     fn from(blocks: [T; N]) -> Self {
         Self { blocks }
     }
 }
 
-impl<T: BitBlock, const N: usize> From<InlineBitSet<T, N>> for [T; N] {
+impl<T: BitBlock, const N: usize> From<TinyBitSet<T, N>> for [T; N] {
     /// Convert the bitset into the underlying bit blocks.
     ///
-    /// See [`InlineBitSet`] for more information on how the bits are indexed.
-    fn from(bitset: InlineBitSet<T, N>) -> Self {
+    /// See [`TinyBitSet`] for more information on how the bits are indexed.
+    fn from(bitset: TinyBitSet<T, N>) -> Self {
         bitset.blocks
     }
 }
 
-impl<T: BitBlock> From<T> for InlineBitSet<T, 1> {
+impl<T: BitBlock> From<T> for TinyBitSet<T, 1> {
     /// Create a bitset from the underlying bit block.
     fn from(block: T) -> Self {
         Self { blocks: [block] }
     }
 }
 
-impl<T: BitBlock, const N: usize> Not for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> Not for TinyBitSet<T, N> {
     type Output = Self;
 
     /// Returns a bitset with all bits flipped.
@@ -126,7 +126,7 @@ impl<T: BitBlock, const N: usize> Not for InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> BitAnd for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitAnd for TinyBitSet<T, N> {
     type Output = Self;
 
     /// Returns a bitset with all bits that are set in both `self` and `rhs`.
@@ -135,13 +135,13 @@ impl<T: BitBlock, const N: usize> BitAnd for InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> BitAndAssign for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitAndAssign for TinyBitSet<T, N> {
     fn bitand_assign(&mut self, rhs: Self) {
         *self = *self & rhs;
     }
 }
 
-impl<T: BitBlock, const N: usize> BitOr for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitOr for TinyBitSet<T, N> {
     type Output = Self;
 
     /// Returns a bitset with all bits that are set in either `self` or `rhs`.
@@ -150,13 +150,13 @@ impl<T: BitBlock, const N: usize> BitOr for InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> BitOrAssign for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitOrAssign for TinyBitSet<T, N> {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
     }
 }
 
-impl<T: BitBlock, const N: usize> BitXor for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitXor for TinyBitSet<T, N> {
     type Output = Self;
 
     /// Returns a bitset with all bits that are set in exactly one of `self` and `rhs`.
@@ -165,15 +165,15 @@ impl<T: BitBlock, const N: usize> BitXor for InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> BitXorAssign for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitXorAssign for TinyBitSet<T, N> {
     fn bitxor_assign(&mut self, rhs: Self) {
         *self = *self ^ rhs;
     }
 }
 
-impl<T: BitBlock, const N: usize> Debug for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> Debug for TinyBitSet<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "InlineBitSet([")?;
+        write!(f, "TinyBitSet([")?;
         for (i, block) in self.blocks.into_iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
@@ -186,13 +186,13 @@ impl<T: BitBlock, const N: usize> Debug for InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> Display for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> Display for TinyBitSet<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         Binary::fmt(self, f)
     }
 }
 
-impl<T: BitBlock, const N: usize> Binary for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> Binary for TinyBitSet<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "0b")?;
@@ -206,7 +206,7 @@ impl<T: BitBlock, const N: usize> Binary for InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> LowerHex for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> LowerHex for TinyBitSet<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "0x")?;
@@ -220,7 +220,7 @@ impl<T: BitBlock, const N: usize> LowerHex for InlineBitSet<T, N> {
     }
 }
 
-impl<T: BitBlock, const N: usize> UpperHex for InlineBitSet<T, N> {
+impl<T: BitBlock, const N: usize> UpperHex for TinyBitSet<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "0x")?;
@@ -239,13 +239,13 @@ mod tests {
     use super::*;
 
     /// Default bit set for testing
-    type TestBitSet = InlineBitSet<u8, 2>;
+    type TestBitSet = TinyBitSet<u8, 2>;
 
     #[test]
     fn capacity() {
         fn test_both<T: BitBlock, const N: usize>(expected: usize) {
-            assert_eq!(expected, InlineBitSet::<T, N>::CAPACITY);
-            assert_eq!(expected, InlineBitSet::<T, N>::default().capacity());
+            assert_eq!(expected, TinyBitSet::<T, N>::CAPACITY);
+            assert_eq!(expected, TinyBitSet::<T, N>::default().capacity());
         }
 
         test_both::<u8, 1>(8);
@@ -284,9 +284,9 @@ mod tests {
     fn from_into_integer() {
         fn test<T>(x: T)
         where
-            T: Debug + BitBlock + From<InlineBitSet<T, 1>>,
+            T: Debug + BitBlock + From<TinyBitSet<T, 1>>,
         {
-            assert_eq!(x, InlineBitSet::from(x).into());
+            assert_eq!(x, TinyBitSet::from(x).into());
         }
 
         test(0x42_u8);
@@ -374,21 +374,21 @@ mod tests {
     #[test]
     fn debug_formatting() {
         assert_eq!(
-            "InlineBitSet([0b00000000, 0b00000000])",
+            "TinyBitSet([0b00000000, 0b00000000])",
             format!("{:?}", TestBitSet::EMPTY)
         );
         assert_eq!(
-            "InlineBitSet([0b11111111, 0b11111111])",
+            "TinyBitSet([0b11111111, 0b11111111])",
             format!("{:?}", TestBitSet::ALL)
         );
         assert_eq!(
-            "InlineBitSet([0b01010101, 0b10101010])",
+            "TinyBitSet([0b01010101, 0b10101010])",
             format!("{:?}", TestBitSet::from([0b0101_0101, 0b1010_1010]))
         );
 
         assert_eq!(
-            "InlineBitSet([0b00111100])",
-            format!("{:#?}", InlineBitSet::from(0b0011_1100_u8))
+            "TinyBitSet([0b00111100])",
+            format!("{:#?}", TinyBitSet::from(0b0011_1100_u8))
         );
     }
 
