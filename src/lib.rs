@@ -1,3 +1,4 @@
+//! TODO
 use std::array;
 use std::iter;
 use std::ops::BitAnd;
@@ -9,45 +10,52 @@ use std::ops::Not;
 use num_traits::PrimInt;
 
 /// Integer that can be used as a block of bits in a bitset.
-pub trait Block: PrimInt + BitAndAssign + BitOrAssign + 'static {
+pub trait BitBlock: PrimInt + BitAndAssign + BitOrAssign + 'static {
+    /// Number of bits in the block.
     const BITS: usize;
-    const ZERO: Self;
-    const ONE: Self;
-    const MAX: Self;
+
+    /// Block without any bits set, aka `0`.
+    const EMPTY: Self;
+
+    /// Block with only the least significant bit set, aka `1`.
+    const LSB: Self;
+
+    /// Block with all bits set.
+    const ALL: Self;
 }
 
-macro_rules! impl_block {
-    ($($t:ty),*) => {
+macro_rules! impl_bit_block {
+    ($($int:ty),*) => {
         $(
-            impl Block for $t {
-                const BITS: usize = <$t>::BITS as usize;
-                const ZERO: Self = 0;
-                const ONE: Self = 1;
-                const MAX: Self = <$t>::MAX;
+            impl BitBlock for $int {
+                const BITS: usize = <$int>::BITS as usize;
+                const EMPTY: Self = 0;
+                const LSB: Self = 1;
+                const ALL: Self = <$int>::MAX;
             }
         )*
     };
 }
 
-impl_block!(u8, u16, u32, u64, u128);
+impl_bit_block!(u8, u16, u32, u64, u128);
 
 /// Bitset storing `N` blocks of type `T` inline.
 #[derive(Debug, Clone, Copy)]
-pub struct BitSet<T: Block, const N: usize>([T; N]);
+pub struct BitSet<T: BitBlock, const N: usize>([T; N]);
 
-impl<T: Block, const N: usize> BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitSet<T, N> {
     pub const LEN: usize = N * T::BITS;
-    pub const EMPTY: Self = Self([T::ZERO; N]);
-    pub const ALL: Self = Self([T::MAX; N]);
+    pub const EMPTY: Self = Self([T::EMPTY; N]);
+    pub const ALL: Self = Self([T::ALL; N]);
 
     /// Creates a bitset with only the bit at `index` set.
     #[inline]
     pub fn single(index: usize) -> Self {
         assert!(index < Self::LEN, "index out of bounds");
-        let mut blocks = [T::ZERO; N];
+        let mut blocks = [T::EMPTY; N];
         let block_index = index / T::BITS;
         let index_in_block = index % T::BITS;
-        blocks[block_index] |= T::ONE << index_in_block;
+        blocks[block_index] |= T::LSB << index_in_block;
         Self(blocks)
     }
 
@@ -57,7 +65,7 @@ impl<T: Block, const N: usize> BitSet<T, N> {
             .enumerate()
             .flat_map(|(block_index, mut block)| {
                 iter::from_fn(move || {
-                    if block == T::ZERO {
+                    if block == T::EMPTY {
                         None
                     } else {
                         let index_in_block = block.trailing_zeros() as usize;
@@ -69,7 +77,7 @@ impl<T: Block, const N: usize> BitSet<T, N> {
     }
 }
 
-impl<T: Block, const N: usize> FromIterator<usize> for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> FromIterator<usize> for BitSet<T, N> {
     fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
         iter.into_iter()
             .map(Self::single)
@@ -77,7 +85,7 @@ impl<T: Block, const N: usize> FromIterator<usize> for BitSet<T, N> {
     }
 }
 
-impl<T: Block, const N: usize> BitAnd for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitAnd for BitSet<T, N> {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -85,13 +93,13 @@ impl<T: Block, const N: usize> BitAnd for BitSet<T, N> {
     }
 }
 
-impl<T: Block, const N: usize> BitAndAssign for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitAndAssign for BitSet<T, N> {
     fn bitand_assign(&mut self, rhs: Self) {
         *self = *self & rhs;
     }
 }
 
-impl<T: Block, const N: usize> BitOr for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitOr for BitSet<T, N> {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -99,13 +107,13 @@ impl<T: Block, const N: usize> BitOr for BitSet<T, N> {
     }
 }
 
-impl<T: Block, const N: usize> BitOrAssign for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitOrAssign for BitSet<T, N> {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
     }
 }
 
-impl<T: Block, const N: usize> Not for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> Not for BitSet<T, N> {
     type Output = Self;
 
     fn not(self) -> Self::Output {
