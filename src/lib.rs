@@ -37,6 +37,16 @@ macro_rules! impl_bit_block {
                 const LSB: Self = 1;
                 const ALL: Self = <$int>::MAX;
             }
+
+            impl From<InlineBitSet<$int, 1>> for $int {
+                /// Convert the bitset into the underlying bit block.
+                ///
+                /// Due to the orphan rule, this cannot be covered by a blanket implementation and
+                /// is thus separately implemented for all primitive integer types.
+                fn from(bitset: InlineBitSet<$int, 1>) -> Self {
+                    bitset.blocks[0]
+                }
+            }
         )*
     };
 }
@@ -98,8 +108,6 @@ impl<T: BitBlock, const N: usize> From<InlineBitSet<T, N>> for [T; N] {
 
 impl<T: BitBlock> From<T> for InlineBitSet<T, 1> {
     /// Create a bitset from the underlying bit block.
-    ///
-    /// See [`InlineBitSet`] for more information on how the bits are indexed.
     fn from(block: T) -> Self {
         Self { blocks: [block] }
     }
@@ -215,9 +223,19 @@ mod tests {
     }
 
     #[test]
-    fn from_integer() {
-        let block: u8 = 0b0110_1001;
-        assert_eq!([block], <[_; 1]>::from(InlineBitSet::from(block)));
+    fn from_into_integer() {
+        fn test<T>(x: T)
+        where
+            T: Debug + BitBlock + From<InlineBitSet<T, 1>>,
+        {
+            assert_eq!(x, InlineBitSet::from(x).into());
+        }
+
+        test(0x42_u8);
+        test(0x1EE7_u16);
+        test(0xDEAD_BEEF_u32);
+        test(0x0123_4567_89AB_CDEF_u64);
+        test(0x0123_4567_89AB_CDEF_FEDC_BA98_7654_3210_u128);
     }
 
     #[test]
