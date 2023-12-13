@@ -1,115 +1,251 @@
+//! TODO
 use std::array;
-use std::iter;
+use std::fmt;
+use std::fmt::Binary;
+use std::fmt::Debug;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::LowerHex;
+use std::fmt::UpperHex;
 use std::ops::BitAnd;
 use std::ops::BitAndAssign;
 use std::ops::BitOr;
 use std::ops::BitOrAssign;
+use std::ops::BitXor;
+use std::ops::BitXorAssign;
+use std::ops::Index;
 use std::ops::Not;
 
 use num_traits::PrimInt;
 
 /// Integer that can be used as a block of bits in a bitset.
-pub trait Block: PrimInt + BitAndAssign + BitOrAssign + 'static {
+pub trait BitBlock: PrimInt + Binary + LowerHex + UpperHex + 'static {
+    /// Number of bits in the block.
     const BITS: usize;
-    const ZERO: Self;
-    const ONE: Self;
-    const MAX: Self;
+
+    /// Block without any bits set, aka `0`.
+    const EMPTY: Self;
+
+    /// Block with only the least significant bit set, aka `1`.
+    const LSB: Self;
+
+    /// Block with all bits set.
+    const ALL: Self;
 }
 
-macro_rules! impl_block {
-    ($($t:ty),*) => {
+macro_rules! impl_bit_block {
+    ($($int:ty),*) => {
         $(
-            impl Block for $t {
-                const BITS: usize = <$t>::BITS as usize;
-                const ZERO: Self = 0;
-                const ONE: Self = 1;
-                const MAX: Self = <$t>::MAX;
+            impl BitBlock for $int {
+                const BITS: usize = <$int>::BITS as usize;
+                const EMPTY: Self = 0;
+                const LSB: Self = 1;
+                const ALL: Self = <$int>::MAX;
+            }
+
+            impl From<TinyBitSet<$int, 1>> for $int {
+                /// Convert the bitset into the underlying bit block.
+                ///
+                /// Due to the orphan rule, this cannot be covered by a blanket implementation and
+                /// is thus separately implemented for all primitive integer types.
+                fn from(bitset: TinyBitSet<$int, 1>) -> Self {
+                    bitset.blocks[0]
+                }
             }
         )*
     };
 }
 
-impl_block!(u8, u16, u32, u64, u128);
+impl_bit_block!(u8, u16, u32, u64, u128);
 
-/// Bitset storing `N` blocks of type `T` inline.
-#[derive(Debug, Clone, Copy)]
-pub struct BitSet<T: Block, const N: usize>([T; N]);
+/// TODO
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TinyBitSet<T: BitBlock, const N: usize> {
+    blocks: [T; N],
+}
 
-impl<T: Block, const N: usize> BitSet<T, N> {
-    pub const LEN: usize = N * T::BITS;
-    pub const EMPTY: Self = Self([T::ZERO; N]);
-    pub const ALL: Self = Self([T::MAX; N]);
+impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
+    /// Number of bits in the bitset.
+    pub const CAPACITY: usize = T::BITS * N;
 
-    /// Creates a bitset with only the bit at `index` set.
-    #[inline]
-    pub fn single(index: usize) -> Self {
-        assert!(index < Self::LEN, "index out of bounds");
-        let mut blocks = [T::ZERO; N];
-        let block_index = index / T::BITS;
-        let index_in_block = index % T::BITS;
-        blocks[block_index] |= T::ONE << index_in_block;
-        Self(blocks)
-    }
+    /// Bitset with no bits set.
+    pub const EMPTY: Self = Self {
+        blocks: [T::EMPTY; N],
+    };
 
-    pub fn iter(self) -> impl Iterator<Item = usize> {
-        self.0
-            .into_iter()
-            .enumerate()
-            .flat_map(|(block_index, mut block)| {
-                iter::from_fn(move || {
-                    if block == T::ZERO {
-                        None
-                    } else {
-                        let index_in_block = block.trailing_zeros() as usize;
-                        block &= !(T::one() << index_in_block);
-                        Some(block_index * T::BITS + index_in_block)
-                    }
-                })
-            })
+    /// Bitset with all bits set.
+    pub const ALL: Self = Self {
+        blocks: [T::ALL; N],
+    };
+
+    /// Number of bits in the bitset.
+    ///
+    /// Equivalent to [`Self::CAPACITY`].
+    pub const fn capacity(self) -> usize {
+        Self::CAPACITY
     }
 }
 
-impl<T: Block, const N: usize> FromIterator<usize> for BitSet<T, N> {
-    fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
-        iter.into_iter()
-            .map(Self::single)
-            .fold(Self::EMPTY, BitOr::bitor)
+impl<T: BitBlock, const N: usize> Default for TinyBitSet<T, N> {
+    /// Returns [`Self::EMPTY`].
+    fn default() -> Self {
+        Self::EMPTY
     }
 }
 
-impl<T: Block, const N: usize> BitAnd for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> From<[T; N]> for TinyBitSet<T, N> {
+    /// Create a bitset from the underlying bit blocks.
+    ///
+    /// See [`TinyBitSet`] for more information on how the bits are indexed.
+    fn from(blocks: [T; N]) -> Self {
+        Self { blocks }
+    }
+}
+
+impl<T: BitBlock, const N: usize> From<TinyBitSet<T, N>> for [T; N] {
+    /// Convert the bitset into the underlying bit blocks.
+    ///
+    /// See [`TinyBitSet`] for more information on how the bits are indexed.
+    fn from(bitset: TinyBitSet<T, N>) -> Self {
+        bitset.blocks
+    }
+}
+
+impl<T: BitBlock> From<T> for TinyBitSet<T, 1> {
+    /// Create a bitset from the underlying bit block.
+    fn from(block: T) -> Self {
+        Self { blocks: [block] }
+    }
+}
+
+impl<T: BitBlock, const N: usize> Index<usize> for TinyBitSet<T, N> {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let block_idx = index / T::BITS;
+        let idx_in_block = index % T::BITS;
+        if (self.blocks[block_idx] >> idx_in_block) & T::LSB == T::LSB {
+            &true
+        } else {
+            &false
+        }
+    }
+}
+
+impl<T: BitBlock, const N: usize> Not for TinyBitSet<T, N> {
     type Output = Self;
 
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self(array::from_fn(|i| self.0[i] & rhs.0[i]))
+    /// Returns a bitset with all bits flipped.
+    fn not(self) -> Self::Output {
+        array::from_fn(|i| !self.blocks[i]).into()
     }
 }
 
-impl<T: Block, const N: usize> BitAndAssign for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitAnd for TinyBitSet<T, N> {
+    type Output = Self;
+
+    /// Returns a bitset with all bits that are set in both `self` and `rhs`.
+    fn bitand(self, rhs: Self) -> Self::Output {
+        array::from_fn(|i| self.blocks[i] & rhs.blocks[i]).into()
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitAndAssign for TinyBitSet<T, N> {
     fn bitand_assign(&mut self, rhs: Self) {
         *self = *self & rhs;
     }
 }
 
-impl<T: Block, const N: usize> BitOr for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitOr for TinyBitSet<T, N> {
     type Output = Self;
 
+    /// Returns a bitset with all bits that are set in either `self` or `rhs`.
     fn bitor(self, rhs: Self) -> Self::Output {
-        Self(array::from_fn(|i| self.0[i] | rhs.0[i]))
+        array::from_fn(|i| self.blocks[i] | rhs.blocks[i]).into()
     }
 }
 
-impl<T: Block, const N: usize> BitOrAssign for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitOrAssign for TinyBitSet<T, N> {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
     }
 }
 
-impl<T: Block, const N: usize> Not for BitSet<T, N> {
+impl<T: BitBlock, const N: usize> BitXor for TinyBitSet<T, N> {
     type Output = Self;
 
-    fn not(self) -> Self::Output {
-        Self(self.0.map(|block| !block))
+    /// Returns a bitset with all bits that are set in exactly one of `self` and `rhs`.
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        array::from_fn(|i| self.blocks[i] ^ rhs.blocks[i]).into()
+    }
+}
+
+impl<T: BitBlock, const N: usize> BitXorAssign for TinyBitSet<T, N> {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = *self ^ rhs;
+    }
+}
+
+impl<T: BitBlock, const N: usize> Debug for TinyBitSet<T, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "TinyBitSet([")?;
+        for (i, block) in self.blocks.into_iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+
+            // The `+ 2` accounts for the `0b` prefix
+            write!(f, "{block:#0width$b}", width = T::BITS + 2)?;
+        }
+        write!(f, "])")
+    }
+}
+
+impl<T: BitBlock, const N: usize> Display for TinyBitSet<T, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Binary::fmt(self, f)
+    }
+}
+
+impl<T: BitBlock, const N: usize> Binary for TinyBitSet<T, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "0b")?;
+        }
+
+        for block in self.blocks.iter().rev() {
+            write!(f, "{block:0width$b}", width = T::BITS)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<T: BitBlock, const N: usize> LowerHex for TinyBitSet<T, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "0x")?;
+        }
+
+        for block in self.blocks.iter().rev() {
+            write!(f, "{block:0width$x}", width = T::BITS / 4)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<T: BitBlock, const N: usize> UpperHex for TinyBitSet<T, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "0x")?;
+        }
+
+        for block in self.blocks.iter().rev() {
+            write!(f, "{block:0width$X}", width = T::BITS / 4)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -117,11 +253,203 @@ impl<T: Block, const N: usize> Not for BitSet<T, N> {
 mod tests {
     use super::*;
 
+    /// Default bit set for testing
+    type TestBitSet = TinyBitSet<u8, 2>;
+
     #[test]
-    fn multiple_blocks() {
-        let expected = vec![0, 42, 128, 255];
-        let bitset = expected.iter().copied().collect::<BitSet<u128, 2>>();
-        let actual: Vec<_> = bitset.iter().collect();
-        assert_eq!(actual, expected);
+    fn capacity() {
+        fn test_both<T: BitBlock, const N: usize>(expected: usize) {
+            assert_eq!(expected, TinyBitSet::<T, N>::CAPACITY);
+            assert_eq!(expected, TinyBitSet::<T, N>::default().capacity());
+        }
+
+        test_both::<u8, 1>(8);
+        test_both::<u16, 1>(16);
+        test_both::<u32, 1>(32);
+        test_both::<u64, 1>(64);
+        test_both::<u128, 1>(128);
+
+        test_both::<u16, 3>(48);
+        test_both::<u128, 8>(1024);
+    }
+
+    #[test]
+    fn empty() {
+        assert_eq!(
+            TestBitSet::from([0b0000_0000, 0b0000_0000]),
+            TestBitSet::EMPTY
+        );
+    }
+
+    #[test]
+    fn all() {
+        assert_eq!(
+            TestBitSet::from([0b1111_1111, 0b1111_1111]),
+            TestBitSet::ALL
+        );
+    }
+
+    #[test]
+    fn from_into() {
+        let blocks = [0b1010_1010, 0b0101_0101];
+        assert_eq!(blocks, <[_; 2]>::from(TestBitSet::from(blocks)));
+    }
+
+    #[test]
+    fn from_into_integer() {
+        fn test<T>(x: T)
+        where
+            T: Debug + BitBlock + From<TinyBitSet<T, 1>>,
+        {
+            assert_eq!(x, TinyBitSet::from(x).into());
+        }
+
+        test(0x42_u8);
+        test(0x1EE7_u16);
+        test(0xDEAD_BEEF_u32);
+        test(0x0123_4567_89AB_CDEF_u64);
+        test(0x0123_4567_89AB_CDEF_FEDC_BA98_7654_3210_u128);
+    }
+
+    #[test]
+    fn default() {
+        assert_eq!(TestBitSet::EMPTY, TestBitSet::default());
+    }
+
+    #[test]
+    fn index() {
+        let bs = TestBitSet::from([0b1010_1010, 0b0101_0101]);
+        assert!(!bs[0]);
+        assert!(bs[1]);
+        assert!(bs[8]);
+        assert!(!bs[9]);
+    }
+
+    #[test]
+    fn not() {
+        assert_eq!(TestBitSet::ALL, !TestBitSet::EMPTY);
+        assert_eq!(TestBitSet::EMPTY, !TestBitSet::ALL);
+        assert_eq!(
+            TestBitSet::from([0b00111100, 0b10101010]),
+            !TestBitSet::from([0b11000011, 0b01010101])
+        );
+    }
+
+    #[test]
+    fn and() {
+        fn test(mut l: TestBitSet, r: TestBitSet, expected: TestBitSet) {
+            assert_eq!(expected, l & r);
+            l &= r;
+            assert_eq!(expected, l);
+        }
+
+        test(TestBitSet::EMPTY, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::EMPTY, TestBitSet::ALL, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::ALL);
+
+        test(
+            TestBitSet::from([0b11100111, 0b01010101]),
+            TestBitSet::from([0b00111100, 0b10101010]),
+            TestBitSet::from([0b00100100, 0b00000000]),
+        );
+    }
+
+    #[test]
+    fn or() {
+        fn test(mut l: TestBitSet, r: TestBitSet, expected: TestBitSet) {
+            assert_eq!(expected, l | r);
+            l |= r;
+            assert_eq!(expected, l);
+        }
+
+        test(TestBitSet::EMPTY, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::EMPTY, TestBitSet::ALL);
+        test(TestBitSet::EMPTY, TestBitSet::ALL, TestBitSet::ALL);
+        test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::ALL);
+
+        test(
+            TestBitSet::from([0b01100110, 0b01010101]),
+            TestBitSet::from([0b00111100, 0b10101010]),
+            TestBitSet::from([0b01111110, 0b11111111]),
+        );
+    }
+
+    #[test]
+    fn xor() {
+        fn test(mut l: TestBitSet, r: TestBitSet, expected: TestBitSet) {
+            assert_eq!(expected, l ^ r);
+            l ^= r;
+            assert_eq!(expected, l);
+        }
+
+        test(TestBitSet::EMPTY, TestBitSet::EMPTY, TestBitSet::EMPTY);
+        test(TestBitSet::ALL, TestBitSet::EMPTY, TestBitSet::ALL);
+        test(TestBitSet::EMPTY, TestBitSet::ALL, TestBitSet::ALL);
+        test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::EMPTY);
+
+        test(
+            TestBitSet::from([0b01100110, 0b01010101]),
+            TestBitSet::from([0b00111100, 0b10101010]),
+            TestBitSet::from([0b01011010, 0b11111111]),
+        );
+    }
+
+    #[test]
+    fn debug_formatting() {
+        assert_eq!(
+            "TinyBitSet([0b00000000, 0b00000000])",
+            format!("{:?}", TestBitSet::EMPTY)
+        );
+        assert_eq!(
+            "TinyBitSet([0b11111111, 0b11111111])",
+            format!("{:?}", TestBitSet::ALL)
+        );
+        assert_eq!(
+            "TinyBitSet([0b01010101, 0b10101010])",
+            format!("{:?}", TestBitSet::from([0b0101_0101, 0b1010_1010]))
+        );
+
+        assert_eq!(
+            "TinyBitSet([0b00111100])",
+            format!("{:#?}", TinyBitSet::from(0b0011_1100_u8))
+        );
+    }
+
+    #[test]
+    fn display_formatting() {
+        assert_eq!("0000000000000000", TestBitSet::EMPTY.to_string());
+        assert_eq!("1111111111111111", TestBitSet::ALL.to_string());
+        assert_eq!(
+            "1111000000001111",
+            TestBitSet::from([0b0000_1111, 0b1111_0000]).to_string()
+        );
+    }
+
+    #[test]
+    fn binary_formatting() {
+        assert_eq!("0000000000000000", format!("{:b}", TestBitSet::EMPTY));
+        assert_eq!("0b0000000000000000", format!("{:#b}", TestBitSet::EMPTY));
+        assert_eq!("1111111111111111", format!("{:b}", TestBitSet::ALL));
+        assert_eq!(
+            "1111000000001111",
+            format!("{:b}", TestBitSet::from([0b0000_1111, 0b1111_0000]))
+        );
+    }
+
+    #[test]
+    fn lower_hex_formatting() {
+        assert_eq!("0000", format!("{:x}", TestBitSet::EMPTY));
+        assert_eq!("0x0000", format!("{:#x}", TestBitSet::EMPTY));
+        assert_eq!("ffff", format!("{:x}", TestBitSet::ALL));
+        assert_eq!("e71e", format!("{:x}", TestBitSet::from([0x1e, 0xe7])));
+    }
+
+    #[test]
+    fn upper_hex_formatting() {
+        assert_eq!("0000", format!("{:X}", TestBitSet::EMPTY));
+        assert_eq!("0x0000", format!("{:#X}", TestBitSet::EMPTY));
+        assert_eq!("FFFF", format!("{:X}", TestBitSet::ALL));
+        assert_eq!("E71E", format!("{:X}", TestBitSet::from([0x1E, 0xE7])));
     }
 }
