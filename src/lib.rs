@@ -102,6 +102,19 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     pub const fn capacity(self) -> usize {
         Self::CAPACITY
     }
+
+    /// Counts the number of bits that are set.
+    pub fn len(self) -> usize {
+        self.blocks
+            .into_iter()
+            .map(|block| block.count_ones() as usize)
+            .sum()
+    }
+
+    /// Returns whether no bits are set.
+    pub fn is_empty(self) -> bool {
+        self.blocks.iter().all(|&block| block == T::EMPTY)
+    }
 }
 
 impl<T: BitBlock, const N: usize> Default for TinyBitSet<T, N> {
@@ -328,6 +341,21 @@ mod tests {
     #[should_panic]
     fn singleton_out_of_range() {
         let _ = TestBitSet::singleton(16);
+    }
+
+    #[test]
+    fn len() {
+        assert_eq!(0, TestBitSet::EMPTY.len());
+        assert_eq!(1, TestBitSet::singleton(5).len());
+        assert_eq!(6, TestBitSet::from([0b1000_0001, 0b0011_1100]).len());
+    }
+
+    #[test]
+    fn is_empty() {
+        assert!(TestBitSet::EMPTY.is_empty());
+        assert!(!TestBitSet::singleton(5).is_empty());
+        assert!(!TestBitSet::from([0b1000_0001, 0b0011_1100]).is_empty());
+        assert!(TestBitSet::from([0b0000_0000, 0b0000_0000]).is_empty());
     }
 
     #[test]
