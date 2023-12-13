@@ -19,7 +19,9 @@ use std::ops::Not;
 use num_traits::PrimInt;
 
 /// Integer that can be used as a block of bits in a bitset.
-pub trait BitBlock: PrimInt + Binary + LowerHex + UpperHex + 'static {
+pub trait BitBlock:
+    PrimInt + BitAndAssign + BitOrAssign + BitXorAssign + Binary + LowerHex + UpperHex + 'static
+{
     /// Number of bits in the block.
     const BITS: usize;
 
@@ -78,11 +80,124 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
         blocks: [T::ALL; N],
     };
 
+    /// Creates an empty bitset.
+    ///
+    /// Equivalent to [`Self::EMPTY`].
+    pub const fn new() -> Self {
+        Self::EMPTY
+    }
+
+    /// Creates a bitset with exactly one bit set.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    pub fn singleton(bit: usize) -> Self {
+        Self::new().inserted(bit)
+    }
+
     /// Number of bits in the bitset.
     ///
     /// Equivalent to [`Self::CAPACITY`].
     pub const fn capacity(self) -> usize {
         Self::CAPACITY
+    }
+
+    /// Counts the number of bits that are set.
+    pub fn len(self) -> usize {
+        self.blocks
+            .into_iter()
+            .map(|block| block.count_ones() as usize)
+            .sum()
+    }
+
+    /// Returns whether no bits are set.
+    pub fn is_empty(self) -> bool {
+        self.blocks.iter().all(|&block| block == T::EMPTY)
+    }
+
+    /// Set the given bit.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    pub fn insert(&mut self, bit: usize) {
+        self.blocks[bit / T::BITS] |= T::LSB << (bit % T::BITS);
+    }
+
+    /// Return a new bitset with the given bit set.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn inserted(mut self, bit: usize) -> Self {
+        self.insert(bit);
+        self
+    }
+
+    /// Unset the given bit.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    pub fn remove(&mut self, bit: usize) {
+        self.blocks[bit / T::BITS] &= !(T::LSB << (bit % T::BITS));
+    }
+
+    /// Return a new bitset with the given bit unset.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn removed(mut self, bit: usize) -> Self {
+        self.remove(bit);
+        self
+    }
+
+    /// Flip the given bit.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    pub fn toggle(&mut self, bit: usize) {
+        self.blocks[bit / T::BITS] ^= T::LSB << (bit % T::BITS);
+    }
+
+    /// Return a new bitset with the given bit flipped.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn toggled(mut self, bit: usize) -> Self {
+        self.toggle(bit);
+        self
+    }
+
+    /// Sets the given bit to the given value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    pub fn assign(&mut self, bit: usize, value: bool) {
+        if value {
+            self.insert(bit);
+        } else {
+            self.remove(bit);
+        }
+    }
+
+    /// Return a new bitset with the given bit set to the given value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn assigned(mut self, bit: usize, value: bool) -> Self {
+        self.assign(bit, value);
+        self
     }
 }
 
@@ -122,9 +237,7 @@ impl<T: BitBlock, const N: usize> Index<usize> for TinyBitSet<T, N> {
     type Output = bool;
 
     fn index(&self, index: usize) -> &Self::Output {
-        let block_idx = index / T::BITS;
-        let idx_in_block = index % T::BITS;
-        if (self.blocks[block_idx] >> idx_in_block) & T::LSB == T::LSB {
+        if (self.blocks[index / T::BITS] >> (index % T::BITS)) & T::LSB == T::LSB {
             &true
         } else {
             &false
@@ -287,6 +400,172 @@ mod tests {
             TestBitSet::from([0b1111_1111, 0b1111_1111]),
             TestBitSet::ALL
         );
+    }
+
+    #[test]
+    fn new() {
+        assert_eq!(TestBitSet::EMPTY, TestBitSet::new());
+    }
+
+    #[test]
+    fn singleton() {
+        let singleton0 = TestBitSet::singleton(0);
+        assert!(singleton0[0]);
+        assert!(!singleton0[1]);
+        assert_eq!(TestBitSet::from([0b0000_0001, 0b0000_0000]), singleton0);
+        assert_eq!(
+            TestBitSet::from([0b0000_0000, 0b0000_0100]),
+            TestBitSet::singleton(10)
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn singleton_out_of_range() {
+        let _ = TestBitSet::singleton(16);
+    }
+
+    #[test]
+    fn len() {
+        assert_eq!(0, TestBitSet::EMPTY.len());
+        assert_eq!(1, TestBitSet::singleton(5).len());
+        assert_eq!(6, TestBitSet::from([0b1000_0001, 0b0011_1100]).len());
+    }
+
+    #[test]
+    fn is_empty() {
+        assert!(TestBitSet::EMPTY.is_empty());
+        assert!(!TestBitSet::singleton(5).is_empty());
+        assert!(!TestBitSet::from([0b1000_0001, 0b0011_1100]).is_empty());
+        assert!(TestBitSet::from([0b0000_0000, 0b0000_0000]).is_empty());
+    }
+
+    #[test]
+    fn insert() {
+        let mut bs = TestBitSet::EMPTY;
+        bs.insert(7);
+        assert_eq!(TestBitSet::from([0b1000_0000, 0b0000_0000]), bs);
+        bs.insert(10);
+        assert_eq!(TestBitSet::from([0b1000_0000, 0b0000_0100]), bs);
+        bs.insert(7);
+        assert_eq!(TestBitSet::from([0b1000_0000, 0b0000_0100]), bs);
+    }
+
+    #[test]
+    #[should_panic]
+    fn insert_out_of_range() {
+        TestBitSet::new().insert(16);
+    }
+
+    #[test]
+    fn inserted() {
+        let bs = TestBitSet::new().inserted(4).inserted(2);
+        assert_eq!(TestBitSet::from([0b0001_0100, 0b0000_0000]), bs);
+        assert_eq!(bs, bs.inserted(2));
+        assert_eq!(bs, bs.inserted(4));
+    }
+
+    #[test]
+    #[should_panic]
+    fn inserted_out_of_range() {
+        let _ = TestBitSet::new().inserted(16);
+    }
+
+    #[test]
+    fn remove() {
+        let mut bs = TestBitSet::ALL;
+        bs.remove(4);
+        assert_eq!(TestBitSet::from([0b1110_1111, 0b1111_1111]), bs);
+        bs.remove(2);
+        assert_eq!(TestBitSet::from([0b1110_1011, 0b1111_1111]), bs);
+        bs.remove(2);
+        assert_eq!(TestBitSet::from([0b1110_1011, 0b1111_1111]), bs);
+    }
+
+    #[test]
+    #[should_panic]
+    fn remove_out_of_range() {
+        TestBitSet::new().remove(16);
+    }
+
+    #[test]
+    fn removed() {
+        let bs = TestBitSet::singleton(15).inserted(1);
+        assert_eq!(TestBitSet::singleton(15), bs.removed(1));
+        assert_eq!(TestBitSet::singleton(1), bs.removed(15));
+        assert_eq!(bs, bs.removed(2));
+        assert_eq!(TestBitSet::EMPTY, bs.removed(1).removed(15));
+    }
+
+    #[test]
+    #[should_panic]
+    fn removed_out_of_range() {
+        let _ = TestBitSet::new().removed(16);
+    }
+
+    #[test]
+    fn toggle() {
+        let mut bs = TestBitSet::EMPTY;
+        bs.toggle(9);
+        assert_eq!(TestBitSet::from([0b0000_0000, 0b0000_0010]), bs);
+        bs.toggle(5);
+        assert_eq!(TestBitSet::from([0b0010_0000, 0b0000_0010]), bs);
+        bs.toggle(5);
+        assert_eq!(TestBitSet::from([0b0000_0000, 0b0000_0010]), bs);
+    }
+
+    #[test]
+    #[should_panic]
+    fn toggle_out_of_range() {
+        TestBitSet::new().toggle(16);
+    }
+
+    #[test]
+    fn toggled() {
+        let bs = TestBitSet::singleton(11);
+        assert_eq!(TestBitSet::EMPTY, bs.toggled(11));
+        assert_eq!(bs, bs.toggled(11).toggled(11));
+        assert_eq!(bs.inserted(5), bs.toggled(5));
+    }
+
+    #[test]
+    #[should_panic]
+    fn toggled_out_of_range() {
+        let _ = TestBitSet::new().toggled(16);
+    }
+
+    #[test]
+    fn assign() {
+        let mut bs = TestBitSet::EMPTY;
+        bs.assign(11, true);
+        assert_eq!(TestBitSet::from([0b0000_0000, 0b0000_1000]), bs);
+        bs.assign(11, true);
+        assert_eq!(TestBitSet::from([0b0000_0000, 0b0000_1000]), bs);
+        bs.assign(11, false);
+        assert_eq!(TestBitSet::EMPTY, bs);
+        bs.assign(11, false);
+        assert_eq!(TestBitSet::EMPTY, bs);
+    }
+
+    #[test]
+    #[should_panic]
+    fn assign_out_of_range() {
+        TestBitSet::new().assign(16, true);
+    }
+
+    #[test]
+    fn assigned() {
+        let bs = TestBitSet::singleton(12);
+        assert_eq!(TestBitSet::EMPTY, bs.assigned(12, false));
+        assert_eq!(bs, bs.assigned(12, true));
+        assert_eq!(bs, bs.assigned(11, false));
+        assert_eq!(bs.inserted(11), bs.assigned(11, true));
+    }
+
+    #[test]
+    #[should_panic]
+    fn assigned_out_of_range() {
+        let _ = TestBitSet::new().assigned(16, true);
     }
 
     #[test]
