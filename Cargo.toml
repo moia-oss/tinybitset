@@ -4,6 +4,10 @@ description = "Generic implementation of small, fixed size, copyable bitsets"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/moia-oss/tinybitset"
+homepage = "https://github.com/moia-oss/tinybitset"
+categories = ["data-structures"]
+keywords = ["bitset", "stack", "small", "data-structure"]
 
 [dependencies]
 num-traits = "0.2.17"
