@@ -78,6 +78,24 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
         blocks: [T::ALL; N],
     };
 
+    /// Creates an empty bitset.
+    ///
+    /// Equivalent to [`Self::EMPTY`].
+    pub const fn new() -> Self {
+        Self::EMPTY
+    }
+
+    /// Creates a bitset with exactly one bit set.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit` is greater than or equal to [`Self::CAPACITY`].
+    pub fn singleton(bit: usize) -> Self {
+        let mut blocks = [T::EMPTY; N];
+        blocks[bit / T::BITS] = T::LSB << (bit % T::BITS);
+        Self::from(blocks)
+    }
+
     /// Number of bits in the bitset.
     ///
     /// Equivalent to [`Self::CAPACITY`].
@@ -287,6 +305,29 @@ mod tests {
             TestBitSet::from([0b1111_1111, 0b1111_1111]),
             TestBitSet::ALL
         );
+    }
+
+    #[test]
+    fn new() {
+        assert_eq!(TestBitSet::EMPTY, TestBitSet::new());
+    }
+
+    #[test]
+    fn singleton() {
+        let singleton0 = TestBitSet::singleton(0);
+        assert!(singleton0[0]);
+        assert!(!singleton0[1]);
+        assert_eq!(TestBitSet::from([0b0000_0001, 0b0000_0000]), singleton0);
+        assert_eq!(
+            TestBitSet::from([0b0000_0000, 0b0000_0100]),
+            TestBitSet::singleton(10)
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn singleton_out_of_range() {
+        let _ = TestBitSet::singleton(16);
     }
 
     #[test]
