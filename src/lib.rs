@@ -13,6 +13,7 @@ use std::ops::BitOr;
 use std::ops::BitOrAssign;
 use std::ops::BitXor;
 use std::ops::BitXorAssign;
+use std::ops::Index;
 use std::ops::Not;
 
 use num_traits::PrimInt;
@@ -114,6 +115,20 @@ impl<T: BitBlock> From<T> for TinyBitSet<T, 1> {
     /// Create a bitset from the underlying bit block.
     fn from(block: T) -> Self {
         Self { blocks: [block] }
+    }
+}
+
+impl<T: BitBlock, const N: usize> Index<usize> for TinyBitSet<T, N> {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let block_idx = index / T::BITS;
+        let idx_in_block = index % T::BITS;
+        if (self.blocks[block_idx] >> idx_in_block) & T::LSB == T::LSB {
+            &true
+        } else {
+            &false
+        }
     }
 }
 
@@ -299,6 +314,15 @@ mod tests {
     #[test]
     fn default() {
         assert_eq!(TestBitSet::EMPTY, TestBitSet::default());
+    }
+
+    #[test]
+    fn index() {
+        let bs = TestBitSet::from([0b1010_1010, 0b0101_0101]);
+        assert!(!bs[0]);
+        assert!(bs[1]);
+        assert!(bs[8]);
+        assert!(!bs[9]);
     }
 
     #[test]
