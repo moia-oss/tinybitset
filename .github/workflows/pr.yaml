@@ -1,6 +1,7 @@
 name: PR checks
 on:
   - pull_request
+  - merge_group
 
 jobs:
   test:
