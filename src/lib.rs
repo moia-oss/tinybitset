@@ -91,7 +91,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     ///
     /// # Panics
     ///
-    /// Panics if `bit` is greater than or equal to [`Self::CAPACITY`].
+    /// Panics if `bit >= Self::CAPACITY`.
     pub fn singleton(bit: usize) -> Self {
         let mut blocks = [T::EMPTY; N];
         blocks[bit / T::BITS] = T::LSB << (bit % T::BITS);
@@ -122,7 +122,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     ///
     /// # Panics
     ///
-    /// Panics if the bit index is greater than or equal to [`Self::CAPACITY`].
+    /// Panics if `bit >= Self::CAPACITY`.
     pub fn insert(&mut self, bit: usize) {
         self.blocks[bit / T::BITS] |= T::LSB << (bit % T::BITS);
     }
@@ -131,7 +131,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     ///
     /// # Panics
     ///
-    /// Panics if the bit index is greater than or equal to [`Self::CAPACITY`].
+    /// Panics if `bit >= Self::CAPACITY`.
     pub fn remove(&mut self, bit: usize) {
         self.blocks[bit / T::BITS] &= !(T::LSB << (bit % T::BITS));
     }
@@ -140,7 +140,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     ///
     /// # Panics
     ///
-    /// Panics if the bit index is greater than or equal to [`Self::CAPACITY`].
+    /// Panics if `bit >= Self::CAPACITY`.
     pub fn flip(&mut self, bit: usize) {
         self.blocks[bit / T::BITS] ^= T::LSB << (bit % T::BITS);
     }
@@ -149,7 +149,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     ///
     /// # Panics
     ///
-    /// Panics if the bit index is greater than or equal to [`Self::CAPACITY`].
+    /// Panics if `bit >= Self::CAPACITY`.
     pub fn assign(&mut self, bit: usize, value: bool) {
         if value {
             self.insert(bit);
