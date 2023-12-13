@@ -93,9 +93,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     ///
     /// Panics if `bit >= Self::CAPACITY`.
     pub fn singleton(bit: usize) -> Self {
-        let mut blocks = [T::EMPTY; N];
-        blocks[bit / T::BITS] = T::LSB << (bit % T::BITS);
-        Self::from(blocks)
+        Self::new().inserted(bit)
     }
 
     /// Number of bits in the bitset.
@@ -127,6 +125,17 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
         self.blocks[bit / T::BITS] |= T::LSB << (bit % T::BITS);
     }
 
+    /// Return a new bitset with the given bit set.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn inserted(mut self, bit: usize) -> Self {
+        self.insert(bit);
+        self
+    }
+
     /// Unset the given bit.
     ///
     /// # Panics
@@ -136,6 +145,17 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
         self.blocks[bit / T::BITS] &= !(T::LSB << (bit % T::BITS));
     }
 
+    /// Return a new bitset with the given bit unset.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn removed(mut self, bit: usize) -> Self {
+        self.remove(bit);
+        self
+    }
+
     /// Flip the given bit.
     ///
     /// # Panics
@@ -143,6 +163,17 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     /// Panics if `bit >= Self::CAPACITY`.
     pub fn flip(&mut self, bit: usize) {
         self.blocks[bit / T::BITS] ^= T::LSB << (bit % T::BITS);
+    }
+
+    /// Return a new bitset with the given bit flipped.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn flipped(mut self, bit: usize) -> Self {
+        self.flip(bit);
+        self
     }
 
     /// Sets the given bit to the given value.
@@ -156,6 +187,17 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
         } else {
             self.remove(bit);
         }
+    }
+
+    /// Return a new bitset with the given bit set to the given value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
+    pub fn assigned(mut self, bit: usize, value: bool) -> Self {
+        self.assign(bit, value);
+        self
     }
 }
 
@@ -416,6 +458,20 @@ mod tests {
     }
 
     #[test]
+    fn inserted() {
+        let bs = TestBitSet::new().inserted(4).inserted(2);
+        assert_eq!(TestBitSet::from([0b0001_0100, 0b0000_0000]), bs);
+        assert_eq!(bs, bs.inserted(2));
+        assert_eq!(bs, bs.inserted(4));
+    }
+
+    #[test]
+    #[should_panic]
+    fn inserted_out_of_range() {
+        let _ = TestBitSet::new().inserted(16);
+    }
+
+    #[test]
     fn remove() {
         let mut bs = TestBitSet::ALL;
         bs.remove(4);
@@ -430,6 +486,21 @@ mod tests {
     #[should_panic]
     fn remove_out_of_range() {
         TestBitSet::new().remove(16);
+    }
+
+    #[test]
+    fn removed() {
+        let bs = TestBitSet::singleton(15).inserted(1);
+        assert_eq!(TestBitSet::singleton(15), bs.removed(1));
+        assert_eq!(TestBitSet::singleton(1), bs.removed(15));
+        assert_eq!(bs, bs.removed(2));
+        assert_eq!(TestBitSet::EMPTY, bs.removed(1).removed(15));
+    }
+
+    #[test]
+    #[should_panic]
+    fn removed_out_of_range() {
+        let _ = TestBitSet::new().removed(16);
     }
 
     #[test]
@@ -450,6 +521,20 @@ mod tests {
     }
 
     #[test]
+    fn flipped() {
+        let bs = TestBitSet::singleton(11);
+        assert_eq!(TestBitSet::EMPTY, bs.flipped(11));
+        assert_eq!(bs, bs.flipped(11).flipped(11));
+        assert_eq!(bs.inserted(5), bs.flipped(5));
+    }
+
+    #[test]
+    #[should_panic]
+    fn flipped_out_of_range() {
+        let _ = TestBitSet::new().flipped(16);
+    }
+
+    #[test]
     fn assign() {
         let mut bs = TestBitSet::EMPTY;
         bs.assign(11, true);
@@ -466,6 +551,21 @@ mod tests {
     #[should_panic]
     fn assign_out_of_range() {
         TestBitSet::new().assign(16, true);
+    }
+
+    #[test]
+    fn assigned() {
+        let bs = TestBitSet::singleton(12);
+        assert_eq!(TestBitSet::EMPTY, bs.assigned(12, false));
+        assert_eq!(bs, bs.assigned(12, true));
+        assert_eq!(bs, bs.assigned(11, false));
+        assert_eq!(bs.inserted(11), bs.assigned(11, true));
+    }
+
+    #[test]
+    #[should_panic]
+    fn assigned_out_of_range() {
+        let _ = TestBitSet::new().assigned(16, true);
     }
 
     #[test]
