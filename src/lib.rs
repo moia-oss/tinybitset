@@ -161,7 +161,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     /// # Panics
     ///
     /// Panics if `bit >= Self::CAPACITY`.
-    pub fn flip(&mut self, bit: usize) {
+    pub fn toggle(&mut self, bit: usize) {
         self.blocks[bit / T::BITS] ^= T::LSB << (bit % T::BITS);
     }
 
@@ -171,8 +171,8 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     ///
     /// Panics if `bit >= Self::CAPACITY`.
     #[must_use]
-    pub fn flipped(mut self, bit: usize) -> Self {
-        self.flip(bit);
+    pub fn toggled(mut self, bit: usize) -> Self {
+        self.toggle(bit);
         self
     }
 
@@ -504,34 +504,34 @@ mod tests {
     }
 
     #[test]
-    fn flip() {
+    fn toggle() {
         let mut bs = TestBitSet::EMPTY;
-        bs.flip(9);
+        bs.toggle(9);
         assert_eq!(TestBitSet::from([0b0000_0000, 0b0000_0010]), bs);
-        bs.flip(5);
+        bs.toggle(5);
         assert_eq!(TestBitSet::from([0b0010_0000, 0b0000_0010]), bs);
-        bs.flip(5);
+        bs.toggle(5);
         assert_eq!(TestBitSet::from([0b0000_0000, 0b0000_0010]), bs);
     }
 
     #[test]
     #[should_panic]
-    fn flip_out_of_range() {
-        TestBitSet::new().flip(16);
+    fn toggle_out_of_range() {
+        TestBitSet::new().toggle(16);
     }
 
     #[test]
-    fn flipped() {
+    fn toggled() {
         let bs = TestBitSet::singleton(11);
-        assert_eq!(TestBitSet::EMPTY, bs.flipped(11));
-        assert_eq!(bs, bs.flipped(11).flipped(11));
-        assert_eq!(bs.inserted(5), bs.flipped(5));
+        assert_eq!(TestBitSet::EMPTY, bs.toggled(11));
+        assert_eq!(bs, bs.toggled(11).toggled(11));
+        assert_eq!(bs.inserted(5), bs.toggled(5));
     }
 
     #[test]
     #[should_panic]
-    fn flipped_out_of_range() {
-        let _ = TestBitSet::new().flipped(16);
+    fn toggled_out_of_range() {
+        let _ = TestBitSet::new().toggled(16);
     }
 
     #[test]
