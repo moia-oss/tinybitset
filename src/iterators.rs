@@ -2,6 +2,10 @@ use std::iter::FusedIterator;
 
 use crate::BitBlock;
 
+/// Iterator over the set bits in a bitset.
+///
+/// Yields the indices of the set bits in ascending order.
+#[derive(Debug, Clone)]
 pub struct IntoIter<T: BitBlock, const N: usize> {
     blocks: [T; N],
     index_front: usize,
