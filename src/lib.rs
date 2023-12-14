@@ -13,7 +13,7 @@
 //! known beforehand. The [`TinyBitSet`] is copyable and the implementation
 //! assumes in many places that the data is small enough to cheaply be copied.
 //! Thus it is mostly suitable for sizes of up to 256 bits. For larger sizes, a
-//! heap-allocated crate like [`petgraph`][petgraph] is likely a better fit.
+//! heap-allocated crate like [`fixedbitset`][fixedbitset] is likely a better fit.
 //!
 //! One unique feature of this crate is that it uses const generics to have a
 //! single generic bitset type whose size and underlying storage type can be
@@ -21,7 +21,7 @@
 //! generic over these parameters and thus can use a different bitset size
 //! depending on the use-case.
 //!
-//! [petgraph]: https://github.com/petgraph/fixedbitset
+//! [fixedbitset]: https://github.com/petgraph/fixedbitset
 mod iterators;
 
 use std::array;
