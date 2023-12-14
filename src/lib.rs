@@ -15,6 +15,12 @@
 //! Thus it is mostly suitable for sizes of up to 256 bits. For larger sizes, a
 //! heap-allocated crate like [`petgraph`][petgraph] is likely a better fit.
 //!
+//! One unique feature of this crate is that it uses const generics to have a
+//! single generic bitset type whose size and underlying storage type can be
+//! chosen with generic arguments. This also allows writing algorithms that are
+//! generic over these parameters and thus can use a different bitset size
+//! depending on the use-case.
+//!
 //! [petgraph]: https://github.com/petgraph/fixedbitset
 use std::array;
 use std::fmt;
