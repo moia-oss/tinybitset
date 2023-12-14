@@ -279,6 +279,21 @@ impl<T: BitBlock, const N: usize> IntoIterator for &TinyBitSet<T, N> {
     }
 }
 
+impl<T: BitBlock, const N: usize> FromIterator<usize> for TinyBitSet<T, N> {
+    /// Creates a bitset with an iterator of indices of set bits.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any of the indices are out of range.
+    fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
+        let mut bs = Self::EMPTY;
+        for i in iter {
+            bs.insert(i);
+        }
+        bs
+    }
+}
+
 impl<T: BitBlock, const N: usize> Not for TinyBitSet<T, N> {
     type Output = Self;
 
@@ -661,6 +676,21 @@ mod tests {
         let bs = TestBitSet::from([0b0000_0010, 0b0001_0110]);
         let iter = (&bs).into_iter();
         assert_eq!(vec![1, 9, 10, 12], iter.collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn from_iterator() {
+        fn to_bs(indices: impl IntoIterator<Item = usize>) -> TestBitSet {
+            indices.into_iter().collect()
+        }
+
+        assert_eq!(TestBitSet::EMPTY, to_bs([]));
+        assert_eq!(TestBitSet::singleton(5), to_bs([5]));
+        assert_eq!(TestBitSet::singleton(6), to_bs([6, 6, 6]));
+        assert_eq!(
+            TestBitSet::singleton(6) | TestBitSet::singleton(11),
+            to_bs([11, 6])
+        );
     }
 
     #[test]
