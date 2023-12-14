@@ -6,7 +6,7 @@
 //! - As an array of booleans that is stored in a compressed fashion using a
 //!   single bit per boolean.
 //! - As a set of small integers from the range `[0, n)`, where `n` is the
-//!   number if bits used in the bitset.
+//!   number of bits used in the bitset.
 //!
 //! This crate supports functionality for both of these views but specializes on
 //! use-cases where only a small number of bits are needed with an upper-bound
