@@ -1,4 +1,27 @@
-//! TODO
+//! This crate provides a small, fixed size [bitset type](TinyBitSet) that
+//! stores its data inline rather than on the heap.
+//!
+//! Bitsets are a data structure that can be viewed through two lenses:
+//!
+//! - As an array of booleans that is stored in a compressed fashion using a
+//!   single bit per boolean.
+//! - As a set of small integers from the range `[0, n)`, where `n` is the
+//!   number of bits used in the bitset.
+//!
+//! This crate supports functionality for both of these views but specializes on
+//! use-cases where only a small number of bits are needed with an upper-bound
+//! known beforehand. The [`TinyBitSet`] is copyable and the implementation
+//! assumes in many places that the data is small enough to cheaply be copied.
+//! Thus it is mostly suitable for sizes of up to 256 bits. For larger sizes, a
+//! heap-allocated crate like [`petgraph`][petgraph] is likely a better fit.
+//!
+//! One unique feature of this crate is that it uses const generics to have a
+//! single generic bitset type whose size and underlying storage type can be
+//! chosen with generic arguments. This also allows writing algorithms that are
+//! generic over these parameters and thus can use a different bitset size
+//! depending on the use-case.
+//!
+//! [petgraph]: https://github.com/petgraph/fixedbitset
 use std::array;
 use std::fmt;
 use std::fmt::Binary;
@@ -60,7 +83,19 @@ macro_rules! impl_bit_block {
 
 impl_bit_block!(u8, u16, u32, u64, u128);
 
-/// TODO
+/// A small, fixed size bitset that stores its data inline.
+///
+/// # Storage and indexing
+///
+/// The bitsets storage consists of `N` blocks of type `T`, where `T` is any of
+/// the unsigned integer types implementing [`BitBlock`]. Thus, the bitset has a
+/// fixed size of `T::BITS * N` bits can be freely converted to and from the
+/// array of blocks.
+///
+/// The bits are indexed from front to back within the array of blocks, and from
+/// least significant to most significant within each block. Thus, the bit with
+/// index `i` is stored in the `(i / T::BITS)`-th block in the `(i %
+/// T::BITS)`-th least significant bit.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TinyBitSet<T: BitBlock, const N: usize> {
     blocks: [T; N],
