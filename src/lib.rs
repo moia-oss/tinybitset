@@ -22,6 +22,8 @@
 //! depending on the use-case.
 //!
 //! [fixedbitset]: https://github.com/petgraph/fixedbitset
+mod iterators;
+
 use std::array;
 use std::fmt;
 use std::fmt::Binary;
@@ -40,6 +42,8 @@ use std::ops::Index;
 use std::ops::Not;
 
 use num_traits::PrimInt;
+
+pub use iterators::IntoIter;
 
 /// Integer that can be used as a block of bits in a bitset.
 pub trait BitBlock:
@@ -149,6 +153,16 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     /// Returns whether no bits are set.
     pub fn is_empty(self) -> bool {
         self.blocks.iter().all(|&block| block == T::EMPTY)
+    }
+
+    /// Iterates over the indices of set bits from lowest to highest.
+    pub fn iter(self) -> IntoIter<T, N> {
+        IntoIter::new(self.blocks)
+    }
+
+    /// Iterates over the indices of unset bits from lowest to highest.
+    pub fn iter_missing(self) -> IntoIter<T, N> {
+        (!self).iter()
     }
 
     /// Set the given bit.
@@ -277,6 +291,41 @@ impl<T: BitBlock, const N: usize> Index<usize> for TinyBitSet<T, N> {
         } else {
             &false
         }
+    }
+}
+
+impl<T: BitBlock, const N: usize> IntoIterator for TinyBitSet<T, N> {
+    type Item = usize;
+
+    type IntoIter = IntoIter<T, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<T: BitBlock, const N: usize> IntoIterator for &TinyBitSet<T, N> {
+    type Item = usize;
+
+    type IntoIter = IntoIter<T, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<T: BitBlock, const N: usize> FromIterator<usize> for TinyBitSet<T, N> {
+    /// Creates a bitset with an iterator of indices of set bits.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any of the indices are out of range.
+    fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
+        let mut bs = Self::EMPTY;
+        for i in iter {
+            bs.insert(i);
+        }
+        bs
     }
 }
 
@@ -476,6 +525,18 @@ mod tests {
     }
 
     #[test]
+    fn iter() {
+        let bs = TestBitSet::from([0b1000_0001, 0b0011_1100]);
+        assert_eq!(vec![0, 7, 10, 11, 12, 13], bs.iter().collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn iter_missing() {
+        let bs = TestBitSet::from([0b1101_0111, 0b1011_1101]);
+        assert_eq!(vec![3, 5, 9, 14], bs.iter_missing().collect::<Vec<_>>());
+    }
+
+    #[test]
     fn insert() {
         let mut bs = TestBitSet::EMPTY;
         bs.insert(7);
@@ -637,6 +698,34 @@ mod tests {
         assert!(bs[1]);
         assert!(bs[8]);
         assert!(!bs[9]);
+    }
+
+    #[test]
+    fn into_iterator() {
+        let bs = TestBitSet::from([0b0010_1000, 0b0100_1100]);
+        assert_eq!(vec![3, 5, 10, 11, 14], bs.into_iter().collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn ref_into_iterator() {
+        let bs = TestBitSet::from([0b0000_0010, 0b0001_0110]);
+        let iter = (&bs).into_iter();
+        assert_eq!(vec![1, 9, 10, 12], iter.collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn from_iterator() {
+        fn to_bs(indices: impl IntoIterator<Item = usize>) -> TestBitSet {
+            indices.into_iter().collect()
+        }
+
+        assert_eq!(TestBitSet::EMPTY, to_bs([]));
+        assert_eq!(TestBitSet::singleton(5), to_bs([5]));
+        assert_eq!(TestBitSet::singleton(6), to_bs([6, 6, 6]));
+        assert_eq!(
+            TestBitSet::singleton(6) | TestBitSet::singleton(11),
+            to_bs([11, 6])
+        );
     }
 
     #[test]
