@@ -40,6 +40,10 @@ impl<T: BitBlock, const N: usize> Iterator for IntoIter<T, N> {
 
         None
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(N * T::BITS))
+    }
 }
 
 impl<T: BitBlock, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
