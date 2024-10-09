@@ -13,7 +13,8 @@
 //! known beforehand. The [`TinyBitSet`] is copyable and the implementation
 //! assumes in many places that the data is small enough to cheaply be copied.
 //! Thus it is mostly suitable for sizes of up to 256 bits. For larger sizes, a
-//! heap-allocated crate like [`fixedbitset`][fixedbitset] is likely a better fit.
+//! heap-allocated crate like [`fixedbitset`][fixedbitset] is likely a better
+//! fit.
 //!
 //! One unique feature of this crate is that it uses const generics to have a
 //! single generic bitset type whose size and underlying storage type can be
@@ -41,9 +42,8 @@ use std::ops::BitXorAssign;
 use std::ops::Index;
 use std::ops::Not;
 
-use num_traits::PrimInt;
-
 pub use iterators::IntoIter;
+use num_traits::PrimInt;
 
 /// Integer that can be used as a block of bits in a bitset.
 pub trait BitBlock:
@@ -122,6 +122,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     /// Creates an empty bitset.
     ///
     /// Equivalent to [`Self::EMPTY`].
+    #[must_use]
     pub const fn new() -> Self {
         Self::EMPTY
     }
@@ -131,6 +132,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     /// # Panics
     ///
     /// Panics if `bit >= Self::CAPACITY`.
+    #[must_use]
     pub fn singleton(bit: usize) -> Self {
         Self::new().inserted(bit)
     }
@@ -156,7 +158,7 @@ impl<T: BitBlock, const N: usize> TinyBitSet<T, N> {
     }
 
     /// Iterates over the indices of set bits from lowest to highest.
-    pub fn iter(self) -> IntoIter<T, N> {
+    pub const fn iter(self) -> IntoIter<T, N> {
         IntoIter::new(self.blocks)
     }
 
@@ -371,7 +373,8 @@ impl<T: BitBlock, const N: usize> BitOrAssign for TinyBitSet<T, N> {
 impl<T: BitBlock, const N: usize> BitXor for TinyBitSet<T, N> {
     type Output = Self;
 
-    /// Returns a bitset with all bits that are set in exactly one of `self` and `rhs`.
+    /// Returns a bitset with all bits that are set in exactly one of `self` and
+    /// `rhs`.
     fn bitxor(self, rhs: Self) -> Self::Output {
         array::from_fn(|i| self.blocks[i] ^ rhs.blocks[i]).into()
     }
@@ -504,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn singleton_out_of_range() {
         let _ = TestBitSet::singleton(16);
     }
@@ -548,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn insert_out_of_range() {
         TestBitSet::new().insert(16);
     }
@@ -562,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn inserted_out_of_range() {
         let _ = TestBitSet::new().inserted(16);
     }
@@ -579,7 +582,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn remove_out_of_range() {
         TestBitSet::new().remove(16);
     }
@@ -594,7 +597,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn removed_out_of_range() {
         let _ = TestBitSet::new().removed(16);
     }
@@ -611,7 +614,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn toggle_out_of_range() {
         TestBitSet::new().toggle(16);
     }
@@ -625,7 +628,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn toggled_out_of_range() {
         let _ = TestBitSet::new().toggled(16);
     }
@@ -644,7 +647,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn assign_out_of_range() {
         TestBitSet::new().assign(16, true);
     }
@@ -659,7 +662,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
     fn assigned_out_of_range() {
         let _ = TestBitSet::new().assigned(16, true);
     }
@@ -733,8 +736,8 @@ mod tests {
         assert_eq!(TestBitSet::ALL, !TestBitSet::EMPTY);
         assert_eq!(TestBitSet::EMPTY, !TestBitSet::ALL);
         assert_eq!(
-            TestBitSet::from([0b00111100, 0b10101010]),
-            !TestBitSet::from([0b11000011, 0b01010101])
+            TestBitSet::from([0b0011_1100, 0b1010_1010]),
+            !TestBitSet::from([0b1100_0011, 0b0101_0101])
         );
     }
 
@@ -752,9 +755,9 @@ mod tests {
         test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::ALL);
 
         test(
-            TestBitSet::from([0b11100111, 0b01010101]),
-            TestBitSet::from([0b00111100, 0b10101010]),
-            TestBitSet::from([0b00100100, 0b00000000]),
+            TestBitSet::from([0b1110_0111, 0b0101_0101]),
+            TestBitSet::from([0b0011_1100, 0b1010_1010]),
+            TestBitSet::from([0b0010_0100, 0b0000_0000]),
         );
     }
 
@@ -772,9 +775,9 @@ mod tests {
         test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::ALL);
 
         test(
-            TestBitSet::from([0b01100110, 0b01010101]),
-            TestBitSet::from([0b00111100, 0b10101010]),
-            TestBitSet::from([0b01111110, 0b11111111]),
+            TestBitSet::from([0b0110_0110, 0b0101_0101]),
+            TestBitSet::from([0b0011_1100, 0b1010_1010]),
+            TestBitSet::from([0b0111_1110, 0b1111_1111]),
         );
     }
 
@@ -792,9 +795,9 @@ mod tests {
         test(TestBitSet::ALL, TestBitSet::ALL, TestBitSet::EMPTY);
 
         test(
-            TestBitSet::from([0b01100110, 0b01010101]),
-            TestBitSet::from([0b00111100, 0b10101010]),
-            TestBitSet::from([0b01011010, 0b11111111]),
+            TestBitSet::from([0b0110_0110, 0b0101_0101]),
+            TestBitSet::from([0b0011_1100, 0b1010_1010]),
+            TestBitSet::from([0b0101_1010, 0b1111_1111]),
         );
     }
 

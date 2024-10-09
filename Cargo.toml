@@ -13,48 +13,44 @@ keywords = ["bitset", "stack", "small", "data-structure"]
 num-traits = "0.2.17"
 
 [lints.rust]
+macro_use_extern_crate = "warn"
+meta_variable_misuse = "warn"
+missing_copy_implementations = "warn"
 missing_debug_implementations = "warn"
-missing_docs = "warn"
-unused_crate_dependencies = "warn"
+redundant_lifetimes = "deny"
+single_use_lifetimes = "deny"
+unreachable_pub = "deny"
+unnameable_types = "deny"
+unsafe_code = "deny"
+unstable_features = "deny"
+unused_crate_dependencies = "deny"
+unused_extern_crates = "warn"
 unused_import_braces = "warn"
 unused_lifetimes = "warn"
 unused_macro_rules = "warn"
-unused_results = "warn"
-unused_tuple_struct_fields = "warn"
+unused_qualifications = "warn"
+unused_results = "deny"
+dead_code = "warn"
+unused = { level = "warn", priority = -1 }
+missing_docs = "deny"
+refining_impl_trait = { level = "warn", priority = -1 }
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "allow"
 
 [lints.clippy]
-correctness = "deny"
-suspicious = "deny"
-complexity = "warn"
-perf = "warn"
-style = "warn"
-cargo = "warn"
-# selected lints from the `pedantic` group
-cast_lossless = "warn"
-cast_possible_truncation = "warn"
-cast_possible_wrap = "warn"
-checked_conversions = "warn"
-cloned_instead_of_copied = "warn"
-copy_iterator = "warn"
-doc_link_with_quotes = "warn"
-doc_markdown = "warn"
-explicit_into_iter_loop = "warn"
-explicit_iter_loop = "warn"
-filter_map_next = "warn"
-flat_map_option = "warn"
-iter_not_returning_iterator = "warn"
-manual_assert = "warn"
-manual_instant_elapsed = "warn"
-manual_let_else = "warn"
-manual_ok_or = "warn"
-map_unwrap_or = "warn"
-match_bool = "warn"
-match_same_arms = "warn"
-missing_errors_doc = "warn"
-missing_fields_in_debug = "warn"
-missing_panics_doc = "warn"
-module_name_repetitions = "warn"
-range_minus_one = "warn"
-range_plus_one = "warn"
-redundant_else = "warn"
-semicolon_if_nothing_returned = "warn"
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+todo = "warn"
+
+disallowed-types = "deny"
+missing_const_for_fn = "warn"
+
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+
+pedantic = { level = "warn", priority = -1 } # setting a lower priority for the group to allow individual overrides
