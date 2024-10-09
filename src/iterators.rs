@@ -13,7 +13,7 @@ pub struct IntoIter<T: BitBlock, const N: usize> {
 }
 
 impl<T: BitBlock, const N: usize> IntoIter<T, N> {
-    pub(crate) fn new(blocks: [T; N]) -> Self {
+    pub(crate) const fn new(blocks: [T; N]) -> Self {
         Self {
             blocks,
             index_front: 0,
