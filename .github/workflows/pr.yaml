@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-      - uses: taiki-e/install-action@v2.86.7
+      - uses: taiki-e/install-action@v2.87.3
         with:
           tool: just
       - run: echo "RUST_TOOLCHAIN=$(just rust-version)" >> $GITHUB_ENV
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-      - uses: taiki-e/install-action@v2.86.7
+      - uses: taiki-e/install-action@v2.87.3
         with:
           tool: just
       - run: |
