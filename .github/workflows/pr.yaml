@@ -22,7 +22,6 @@ jobs:
       - run: cp rust-toolchain-nightly.toml rust-toolchain.toml # use nightly
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
-          toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}, ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
           cache-shared-key: nightly-build
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
